@@ -1,4 +1,3 @@
-#%%
 import os
 import argparse
 import math
@@ -25,10 +24,10 @@ else:
 
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--print_every', type=int, default=1)
+parser.add_argument('--print_every', type=int, default=10)
 parser.add_argument('--num_epochs', type=int, default=5)
 parser.add_argument('--lr', type=float, default=0.00001)
-parser.add_argument('--batch_size', type=int, default=4)
+parser.add_argument('--batch_size', type=int, default=32)
 
 FLAGS = parser.parse_args()
 NUM_EPOCHS = FLAGS.num_epochs
@@ -36,10 +35,11 @@ LR = FLAGS.lr
 BATCH_SIZE = FLAGS.batch_size
 PRINT_EVERY = FLAGS.print_every
 
-#%%
+
 tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
 
 stories = pd.read_csv('data/nlp2_val.csv')
+stories_test = pd.read_csv('data/nlp2_test.csv')
 
 columns_rename = {
     'InputStoryid': 'storyid',
@@ -53,13 +53,17 @@ columns_rename = {
     'AnswerRightEnding': 'answer'
 }
 stories = stories.rename(index=str, columns=columns_rename)
+stories_test = stories_test.rename(index=str, columns=columns_rename)
+
 train_stories, val_stories = train_test_split(stories, test_size=0.1)
 
 
-train_dataloader = DataLoader(RocData(train_stories), batch_size=BATCH_SIZE,
-                                shuffle=True, num_workers=4)
-val_dataloader = DataLoader(RocData(val_stories), batch_size=BATCH_SIZE,
-                                shuffle=False, num_workers=4)
+train_dataloader = DataLoader(RocData(train_stories,device), batch_size=BATCH_SIZE,
+                                shuffle=True)
+val_dataloader = DataLoader(RocData(val_stories,device), batch_size=BATCH_SIZE,
+                                shuffle=False)
+test_dataloader = DataLoader(RocData(stories_test,device), batch_size=BATCH_SIZE,
+                                shuffle=False)
 
 net = BertNet()
 net.to(device)
@@ -109,3 +113,18 @@ for epoch in range(NUM_EPOCHS):
         metric_acc.reset()
 
         print(f'============Epoch: {epoch+1}, ValAccuracy: {val_accuracy}, Valloss: {running_loss_val/v_iteration}=================')
+
+with torch.no_grad():
+    metric_acc.reset()
+    for i, test_batch in enumerate(test_dataloader):
+        output, val_loss = utils.run_step(test_batch, net, tokenizer, ce_loss, device)
+
+        # running_loss_val += val_loss.item()
+
+        _, predicted = torch.max(output, 1)
+        metric_acc.update_batch(predicted, test_batch['labels'])
+
+    test_accuracy = metric_acc.get_metrics_summary()
+    metric_acc.reset()
+
+    print(f'======== TestAccuracy: {test_accuracy} ======')

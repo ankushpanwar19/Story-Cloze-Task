@@ -1,11 +1,13 @@
 import pandas as pd
+import torch
 from torch.utils.data import Dataset, DataLoader
 
 class RocData(Dataset):
-    def __init__(self, data_df, transform=None):
+    def __init__(self, data_df, device):
         
         self.data_df = data_df
-        self.transform = transform
+        # self.transform = transform
+        self.device=device
 
     def __len__(self):
         return len(self.data_df)
@@ -21,7 +23,7 @@ class RocData(Dataset):
             'full_story': full_story,
             'ending1': ending1,
             'ending2': ending2,
-            'labels': label,
+            'labels': torch.tensor(label,device=self.device),
         }
 
         return sample
