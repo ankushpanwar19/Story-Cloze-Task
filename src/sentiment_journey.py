@@ -70,7 +70,6 @@ for epoch in range(NUM_EPOCHS):
             print(f'Epoch: {epoch+1}, Step: {i}/{n_iteration},\
                 Runningloss: {running_loss_train/PRINT_EVERY}')
             running_loss_train = 0.0
-        break
 
     with torch.no_grad():
         for i, val_batch in enumerate(val_dataloader):
