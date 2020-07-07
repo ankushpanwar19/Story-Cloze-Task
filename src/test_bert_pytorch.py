@@ -38,22 +38,9 @@ PRINT_EVERY = FLAGS.print_every
 
 tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
 
-stories = pd.read_csv('data/nlp2_val.csv')
-stories_test = pd.read_csv('data/nlp2_test.csv')
+stories = utils.read_data('data/nlp2_val.csv')
+stories_test = utils.read_data('data/nlp2_test.csv')
 
-columns_rename = {
-    'InputStoryid': 'storyid',
-    'InputSentence1': 'sentence1',
-    'InputSentence2': 'sentence2',
-    'InputSentence3': 'sentence3',
-    'InputSentence4': 'sentence4',
-    'InputSentence5': 'sentence5',
-    'RandomFifthSentenceQuiz1': 'ending1',
-    'RandomFifthSentenceQuiz2': 'ending2',
-    'AnswerRightEnding': 'answer'
-}
-stories = stories.rename(index=str, columns=columns_rename)
-stories_test = stories_test.rename(index=str, columns=columns_rename)
 
 train_stories, val_stories = train_test_split(stories, test_size=0.1)
 

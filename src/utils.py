@@ -1,4 +1,21 @@
+import pandas as pd
 
+def read_data(fpath):
+    df = pd.read_csv(fpath)
+
+    columns_rename = {
+        'InputStoryid': 'storyid',
+        'InputSentence1': 'sentence1',
+        'InputSentence2': 'sentence2',
+        'InputSentence3': 'sentence3',
+        'InputSentence4': 'sentence4',
+        'InputSentence5': 'sentence5',
+        'RandomFifthSentenceQuiz1': 'ending1',
+        'RandomFifthSentenceQuiz2': 'ending2',
+        'AnswerRightEnding': 'answer'
+    }
+    df = df.rename(index=str, columns=columns_rename)
+    return df
 
 def run_step(batch, net, tokenizer, loss_name, device):
     e1_inputs = tokenizer(text=batch['full_story'], 
