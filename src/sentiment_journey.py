@@ -47,10 +47,10 @@ n_iteration=len(train_dataloader)
 
 for epoch in range(NUM_EPOCHS):
     running_loss_train = 0.0
-    for i, train_batch in enumerate(train_dataloader):
+    for i, (train_batch,label) in enumerate(train_dataloader):
         optimizer.zero_grad()
-        output = net(train_batch[0])
-        loss =torch.mean(1- criterion(output,train_batch[1]))
+        output = net(train_batch)
+        loss =torch.mean(1- criterion(output,label))
         loss.backward()
         optimizer.step()
 

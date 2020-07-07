@@ -2,6 +2,8 @@ import pandas as pd
 import torch
 from torch.utils.data import Dataset, DataLoader
 from nltk.sentiment.vader import SentimentIntensityAnalyzer
+import nltk
+nltk.download('vader_lexicon')
 
 class RocData(Dataset):
     def __init__(self, data_df, device):
