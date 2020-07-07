@@ -148,7 +148,6 @@ dmypy.json
 .DS_Store
 
 ### Ignore Datafiles
-data/
 
 ### Ignore experiments
 experiments/
