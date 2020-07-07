@@ -18,3 +18,13 @@ class BertNet(torch.nn.Module):
         output = torch.cat((e1_score, e2_score), dim=1)
 
         return output
+
+class SentimentNet(torch.nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.lstm1 = torch.nn.LSTM(3,3,batch_first=True)
+
+    def forward(self,data):
+        output,(h,c)=self.lstm1(data)
+
+        return h[-1]
