@@ -118,9 +118,9 @@ class CommonSenseData(Dataset):
             words_s = word_tokenize(story.iloc[i])[:-1]
 
             for word_e in words_e:
-                total_d = 0
+                max_d = 0
                 num += 1
-                cnt = 0
+                # cnt = 0
                 word_e_process = ttu.standardized_uri('en', word_e)
                 if word_e_process in self.emb_words:
                     word_e_emb = self.embedding.loc[word_e_process].values
@@ -131,10 +131,9 @@ class CommonSenseData(Dataset):
                                 word_s_emb = self.embedding.loc[word_s_process].values
 
                                 d = cosine(word_e_emb, word_s_emb)
-                                # if d > max_d:
-                                total_d += d
-                                cnt += 1
-                dis_j += total_d/(cnt+0.0001)
+                                if d > max_d:
+                                    max_d=d
+                dis_j += max_d
             dis_j /= num
             dist.append(dis_j)
 

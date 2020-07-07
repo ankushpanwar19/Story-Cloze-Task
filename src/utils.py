@@ -1,4 +1,8 @@
 import pandas as pd
+import text_to_uri as ttu
+from nltk.stem import PorterStemmer 
+from scipy.spatial.distance import cosine
+from nltk.tokenize import word_tokenize
 
 def read_data(fpath):
     df = pd.read_csv(fpath)
@@ -40,3 +44,36 @@ def run_step(batch, net, tokenizer, loss_name, device):
 
     return output, loss
 
+
+def create_common_sense_distance(ending_name, story,embedding):
+        # row = story.iloc[idx,1:-1]
+        emb_words=embedding.index
+        stemmer=PorterStemmer()
+        words_e = word_tokenize(story[ending_name])[:-1]
+        dist = []
+        for i in range(4):
+            dis_j = 0
+            num = 0
+            words_s = word_tokenize(story.iloc[i])[:-1]
+
+            for word_e in words_e:
+                max_d = 0
+                num += 1
+                # cnt = 0
+                word_e_process = ttu.standardized_uri('en', word_e)
+                if word_e_process in emb_words:
+                    word_e_emb = embedding.loc[word_e_process].values
+                    for word_s in words_s:
+                        if stemmer.stem(word_e) != stemmer.stem(word_s):
+                            word_s_process = ttu.standardized_uri('en', word_s)
+                            if word_s_process in emb_words:
+                                word_s_emb = embedding.loc[word_s_process].values
+
+                                d = cosine(word_e_emb, word_s_emb)
+                                if d > max_d:
+                                    max_d=d
+                dis_j += max_d
+            dis_j /= num
+            dist.append(dis_j)
+
+        return dist
