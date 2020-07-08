@@ -3,8 +3,6 @@ import torch
 from torch.utils.data import Dataset, DataLoader
 from nltk.sentiment.vader import SentimentIntensityAnalyzer
 import nltk
-from nltk.tokenize import word_tokenize
-from nltk.stem import PorterStemmer 
 from scipy.spatial.distance import cosine
 from tqdm import tqdm
 
@@ -85,8 +83,6 @@ class CommonSenseData(Dataset):
         self.device=device
         self.embedding = embedding
 
-        self.stemmer = PorterStemmer()
-        self.emb_words = embedding.index
 
     def __len__(self):
         return len(self.data_df)
@@ -94,9 +90,9 @@ class CommonSenseData(Dataset):
     def __getitem__(self, idx):
         story_item = self.data_df.iloc[idx]
         story = story_item.iloc[1:-1]
-
-        ending1_feature = self.create_common_sense_distance('ending1', story)
-        ending2_feature = self.create_common_sense_distance('ending2', story)
+        story_id=story_item['storyid']
+        ending1_feature = self.embedding[story_id]['ending1']
+        ending2_feature = self.embedding[story_id]['ending2']
 
         label = story_item['answer']-1
 
@@ -107,37 +103,6 @@ class CommonSenseData(Dataset):
         }
 
         return sample
-
-    def create_common_sense_distance(self, ending_name, story):
-        # row = story.iloc[idx,1:-1]
-        words_e = word_tokenize(story[ending_name])[:-1]
-        dist = []
-        for i in tqdm(range(4)):
-            dis_j = 0
-            num = 0
-            words_s = word_tokenize(story.iloc[i])[:-1]
-
-            for word_e in words_e:
-                max_d = 0
-                num += 1
-                # cnt = 0
-                word_e_process = ttu.standardized_uri('en', word_e)
-                if word_e_process in self.emb_words:
-                    word_e_emb = self.embedding.loc[word_e_process].values
-                    for word_s in words_s:
-                        if self.stemmer.stem(word_e) != self.stemmer.stem(word_s):
-                            word_s_process = ttu.standardized_uri('en', word_s)
-                            if word_s_process in self.emb_words:
-                                word_s_emb = self.embedding.loc[word_s_process].values
-
-                                d = cosine(word_e_emb, word_s_emb)
-                                if d > max_d:
-                                    max_d=d
-                dis_j += max_d
-            dis_j /= num
-            dist.append(dis_j)
-
-        return dist
 
 
 #%%

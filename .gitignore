@@ -115,6 +115,7 @@ ENV/
 env.bak/
 venv.bak/
 venv_3d/
+.venv_3d/
 
 # Spyder project settings
 .spyderproject
@@ -166,8 +167,12 @@ classifier_bash.sh
 
 ## Ignore checkpoint file
 *.ckpt
+checkpoints/
 
 ## Ignore lsf files
 lsf.*
 ._*
+numberbatch-en-19.08.txt
+numberbatch-en-19.08.txt.gz
+
 # End of https://www.gitignore.io/api/python,jupyternotebook,visualstudiocode

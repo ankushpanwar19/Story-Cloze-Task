@@ -50,8 +50,8 @@ class CommonsenseNet(torch.nn.Module):
     def __init__(self):
         super().__init__()
         
-        self.layer1 = torch.nn.Linear(4, 16)
-        self.out = torch.nn.Linear(16, 1)
+        self.layer1 = torch.nn.Linear(4, 256)
+        self.out = torch.nn.Linear(256, 1)
 
     def forward(self,data):
         out1=self.step(data['ending1'])

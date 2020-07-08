@@ -9,7 +9,7 @@ from sklearn.model_selection import train_test_split
 from dataset import CommonSenseData
 from bert_model import CommonsenseNet
 from metrics import Accuracy
-
+import pickle
 import utils
 
 if torch.cuda.is_available():
@@ -21,10 +21,10 @@ else:
 
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--print_every', type=int, default=1)
-parser.add_argument('--num_epochs', type=int, default=5)
-parser.add_argument('--lr', type=float, default=0.00001)
-parser.add_argument('--batch_size', type=int, default=4)
+parser.add_argument('--print_every', type=int, default=5)
+parser.add_argument('--num_epochs', type=int, default=10)
+parser.add_argument('--lr', type=float, default=0.0001)
+parser.add_argument('--batch_size', type=int, default=100)
 
 FLAGS = parser.parse_args()
 NUM_EPOCHS = FLAGS.num_epochs
@@ -34,17 +34,23 @@ PRINT_EVERY = FLAGS.print_every
 
 stories = utils.read_data('data/nlp2_val.csv')
 stories_test = utils.read_data('data/nlp2_test.csv')
-embedding = pd.read_csv('numberbatch-en-19.08.txt', sep=' ', skiprows=1, header=None)
-embedding.set_index(0, inplace=True)
+
+embed_file_val = open("data/dictionary_commonsense_val.pickle",'rb')
+embedding_val=pickle.load(embed_file_val)
+embed_file_val.close()
+
+embed_file_test = open("data/dictionary_commonsense_test.pickle",'rb')
+embedding_test=pickle.load(embed_file_test)
+embed_file_test.close()
 
 train_stories, val_stories = train_test_split(stories, test_size=0.1)
 
 
-train_dataloader = DataLoader(CommonSenseData(train_stories,embedding,device), batch_size=BATCH_SIZE,
+train_dataloader = DataLoader(CommonSenseData(train_stories,embedding_val,device), batch_size=BATCH_SIZE,
                                 shuffle=True)
-val_dataloader = DataLoader(CommonSenseData(val_stories,embedding,device), batch_size=BATCH_SIZE,
+val_dataloader = DataLoader(CommonSenseData(val_stories,embedding_val,device), batch_size=BATCH_SIZE,
                                 shuffle=False)
-test_dataloader = DataLoader(CommonSenseData(stories_test,embedding,device), batch_size=BATCH_SIZE,
+test_dataloader = DataLoader(CommonSenseData(stories_test,embedding_test,device), batch_size=BATCH_SIZE,
                                 shuffle=False)
 
 net = CommonsenseNet()
