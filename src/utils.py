@@ -21,7 +21,7 @@ def read_data(fpath):
     df = df.rename(index=str, columns=columns_rename)
     return df
 
-def run_step(batch, net, tokenizer, loss_name, device):
+def run_step(batch, net, tokenizer, loss_name, device, compute_loss=True):
     e1_inputs = tokenizer(text=batch['full_story'], 
                         text_pair=batch['ending1'],
                         padding=True,
@@ -40,8 +40,10 @@ def run_step(batch, net, tokenizer, loss_name, device):
         e2_inputs[i]=e2_inputs[i].to(device)
 
     output = net(e1_inputs, e2_inputs)
+    if not compute_loss:
+        return output
+        
     loss = loss_name(output, batch['labels'])
-
     return output, loss
 
 

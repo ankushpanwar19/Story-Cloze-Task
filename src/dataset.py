@@ -71,7 +71,12 @@ class SentimentData(Dataset):
         labels = story_item['answer']-1
         labels = torch.tensor(labels,device=self.device)
 
-        sample = {'story_emb': story_emb, 'ending1_emb': ending1_emb, 'ending2_emb': ending2_emb, 'labels': labels}
+        sample = {
+            'story_senti_emb': story_emb, 
+            'ending1_senti_emb': ending1_emb, 
+            'ending2_senti_emb': ending2_emb, 
+            'labels': labels
+        }
 
         return sample
 
@@ -97,12 +102,58 @@ class CommonSenseData(Dataset):
         label = story_item['answer']-1
 
         sample = {
-            'ending1': torch.tensor(ending1_feature,device=self.device),
-            'ending2': torch.tensor(ending2_feature,device=self.device),
+            'ending1_common_sense': torch.tensor(ending1_feature, dtype=torch.float32, device=self.device),
+            'ending2_common_sense': torch.tensor(ending2_feature, dtype=torch.float32, device=self.device),
             'labels': torch.tensor(label,device=self.device),
         }
 
         return sample
+
+class CombinedData(Dataset):
+    def __init__(self, data_df, cnet_embedding, device):
+        self.data_df = data_df
+        self.embedding = cnet_embedding
+        self.device = device
+
+    def __len__(self):
+        return len(self.data_df)
+
+    def __getitem__(self, idx):
+        story_item = self.data_df.iloc[idx]
+        full_story = ' '.join(story_item.iloc[1:5].tolist())
+        ending1 = story_item['ending1']
+        ending2 = story_item['ending2']
+        labels = story_item['answer']-1
+
+
+        story = story_item.iloc[1:-1].tolist()
+        sid = SentimentIntensityAnalyzer()
+        senti_emb=[]
+        for i in range(len(story)):
+            ss = sid.polarity_scores(story[i])
+            senti_emb.append(torch.tensor([ss['neg'],ss['neu'],ss['pos']],device=self.device))
+
+        story_senti_emb = torch.stack(senti_emb[:4]).to(self.device)
+        ending1_senti_emb = senti_emb[4]
+        ending2_senti_emb = senti_emb[5]
+
+        story_id=story_item['storyid']
+        ending1_feature = self.embedding[story_id]['ending1']
+        ending2_feature = self.embedding[story_id]['ending2']
+
+        sample = {
+            'full_story': full_story,
+            'ending1': ending1,
+            'ending2': ending2,
+            'story_senti_emb': story_senti_emb, 
+            'ending1_senti_emb': ending1_senti_emb, 
+            'ending2_senti_emb': ending2_senti_emb,
+            'ending1_common_sense': torch.tensor(ending1_feature, dtype=torch.float32, device=self.device),
+            'ending2_common_sense': torch.tensor(ending2_feature, dtype=torch.float32, device=self.device),
+            'labels': torch.tensor(labels,device=self.device),
+        }
+        return sample
+
 
 
 #%%

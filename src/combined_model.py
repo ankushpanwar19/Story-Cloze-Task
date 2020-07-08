@@ -6,14 +6,14 @@ import torch
 import pandas as pd
 from torch.utils.data import DataLoader
 from sklearn.model_selection import train_test_split
+import pickle
 
-from dataset import RocData
-from all_models import BertNet
+from dataset import CombinedData
+from all_models import CombinedNet
 from metrics import Accuracy
 
 import utils
 
-os.environ["TOKENIZERS_PARALLELISM"] = "false"
 
 if torch.cuda.is_available():
     device=torch.device('cuda')
@@ -36,24 +36,36 @@ BATCH_SIZE = FLAGS.batch_size
 PRINT_EVERY = FLAGS.print_every
 
 
-# tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
-
 stories = utils.read_data('data/nlp2_val.csv')
 stories_test = utils.read_data('data/nlp2_test.csv')
 
+embed_file_val = open("data/dictionary_commonsense_val.pickle",'rb')
+embedding_val=pickle.load(embed_file_val)
+embed_file_val.close()
+
+embed_file_test = open("data/dictionary_commonsense_test.pickle",'rb')
+embedding_test=pickle.load(embed_file_test)
+embed_file_test.close()
+
+
+bert_dict = torch.load("checkpoints/bert.pth",map_location=device)
+sentiment_dict = torch.load("checkpoints/sentiment_finetuned.pth",map_location=device)
+common_sense_dict = torch.load("checkpoints/common_sense.pth",map_location=device)
 
 train_stories, val_stories = train_test_split(stories, test_size=0.1)
 
 
-train_dataloader = DataLoader(RocData(train_stories,device), batch_size=BATCH_SIZE,
+train_dataloader = DataLoader(CombinedData(train_stories, embedding_val, device), batch_size=BATCH_SIZE,
                                 shuffle=True)
-val_dataloader = DataLoader(RocData(val_stories,device), batch_size=BATCH_SIZE,
+val_dataloader = DataLoader(CombinedData(val_stories, embedding_val, device), batch_size=BATCH_SIZE,
                                 shuffle=False)
-test_dataloader = DataLoader(RocData(stories_test,device), batch_size=BATCH_SIZE,
+test_dataloader = DataLoader(CombinedData(stories_test, embedding_test, device), batch_size=BATCH_SIZE,
                                 shuffle=False)
 
-# net = BertNet()
-net = BertNet(device)
+net = CombinedNet(device)
+net.load_state_dict(bert_dict,strict=False)
+net.load_state_dict(sentiment_dict,strict=False)
+net.load_state_dict(common_sense_dict,strict=False)
 net.to(device)
 
 ce_loss = torch.nn.CrossEntropyLoss()
@@ -61,24 +73,24 @@ optimizer = torch.optim.Adam(net.parameters(), lr=LR)
 
 metric_acc = Accuracy()
 
-n_iteration=len(train_dataloader)
-v_iteration=len(val_dataloader)
+n_iteration = len(train_dataloader)
+v_iteration = len(val_dataloader)
 
 for epoch in range(NUM_EPOCHS):
     running_loss_train = 0.0
     running_loss_val = 0.0
     for i, train_batch in enumerate(train_dataloader):
         optimizer.zero_grad()
+        logits = net(train_batch)
+        train_loss = ce_loss(logits, train_batch['labels'])
         # output, train_loss = utils.run_step(train_batch, net, tokenizer, ce_loss, device)
-        output = net(train_batch)
-        train_loss = ce_loss(output, train_batch['labels'])
 
         train_loss.backward()
         optimizer.step()
 
         running_loss_train += train_loss.item()
 
-        _, predicted = torch.max(output, 1)
+        _, predicted = torch.max(logits, 1)
         metric_acc.update_batch(predicted, train_batch['labels'])
 
         if i%PRINT_EVERY == 0:
@@ -88,18 +100,20 @@ for epoch in range(NUM_EPOCHS):
             print(f'Epoch: {epoch+1}, Step: {i}/{n_iteration}, Accuracy: {train_accuracy}, \
                     Runningloss: {running_loss_train/PRINT_EVERY}')
             running_loss_train = 0
+        break
 
 
     with torch.no_grad():
         for i, val_batch in enumerate(val_dataloader):
-            # output, val_loss = utils.run_step(val_batch, net, tokenizer, ce_loss, device)
-            output = net(val_batch)
-            val_loss = ce_loss(output, val_batch['labels'])
+            logits = net(val_batch)
+            val_loss = ce_loss(logits, val_batch['labels'])
+            # logits, val_loss = utils.run_step(val_batch, net, tokenizer, ce_loss, device)
 
             running_loss_val += val_loss.item()
 
-            _, predicted = torch.max(output, 1)
+            _, predicted = torch.max(logits, 1)
             metric_acc.update_batch(predicted, val_batch['labels'])
+            break
 
         val_accuracy = metric_acc.get_metrics_summary()
         metric_acc.reset()
@@ -109,19 +123,15 @@ for epoch in range(NUM_EPOCHS):
 with torch.no_grad():
     metric_acc.reset()
     for i, test_batch in enumerate(test_dataloader):
-        # output, val_loss = utils.run_step(test_batch, net, tokenizer, ce_loss, device)
-        output = net(test_batch)
+        logits = net(test_batch)
+        # logits, val_loss = utils.run_step(test_batch, net, tokenizer, ce_loss, device)
 
         # running_loss_val += val_loss.item()
 
-        _, predicted = torch.max(output, 1)
+        _, predicted = torch.max(logits, 1)
         metric_acc.update_batch(predicted, test_batch['labels'])
 
     test_accuracy = metric_acc.get_metrics_summary()
     metric_acc.reset()
 
     print(f'======== TestAccuracy: {test_accuracy} ======')
-
-torch.save(net.state_dict(), 'checkpoints/bert.pth')
-
-print('end')

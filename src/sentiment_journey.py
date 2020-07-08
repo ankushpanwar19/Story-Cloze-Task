@@ -8,7 +8,7 @@ import pandas as pd
 from torch.utils.data import DataLoader
 
 from dataset import SentimentData
-from bert_model import SentimentNet
+from all_models import SentimentNet
 from metrics import Accuracy
 
 import utils
@@ -73,10 +73,10 @@ for epoch in range(NUM_EPOCHS):
 
     with torch.no_grad():
         for i, val_batch in enumerate(val_dataloader):
-            output = net(val_batch['story_emb'])
+            output = net(val_batch['story_senti_emb'])
 
-            ending1_sim = criterion(output,val_batch['ending1_emb'])
-            ending2_sim = criterion(output,val_batch['ending2_emb'])
+            ending1_sim = criterion(output,val_batch['ending1_senti_emb'])
+            ending2_sim = criterion(output,val_batch['ending2_senti_emb'])
 
             ending_sim = torch.stack((ending1_sim, ending2_sim), dim=1)
 

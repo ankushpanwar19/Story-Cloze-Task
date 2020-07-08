@@ -7,7 +7,7 @@ import pandas as pd
 from torch.utils.data import DataLoader
 
 from dataset import SentimentData
-from bert_model import SentimentNetEnd2End
+from all_models import SentimentNetEnd2End
 from metrics import Accuracy
 from sklearn.model_selection import train_test_split
 
@@ -35,8 +35,6 @@ BATCH_SIZE = FLAGS.batch_size
 PRINT_EVERY = FLAGS.print_every
 
 senti_net_dict=torch.load("checkpoints/sentiment_base.pth",map_location=device)
-# senti_net=SentimentNet()
-# senti_net.load_state_dict(senti_net_dict)
 
 stories = utils.read_data('data/nlp2_val.csv')
 test_stories = utils.read_data('data/nlp2_test.csv')
@@ -88,3 +86,7 @@ for epoch in range(NUM_EPOCHS):
         val_accuracy = metric_acc.get_metrics_summary()
         metric_acc.reset()
         print(f'============Epoch: {epoch+1}, ValAccuracy: {val_accuracy}=================')
+
+torch.save(net.state_dict(), 'checkpoints/sentiment_finetuned.pth')
+
+print('end')

@@ -7,7 +7,7 @@ from torch.utils.data import DataLoader
 from sklearn.model_selection import train_test_split
 
 from dataset import CommonSenseData
-from bert_model import CommonsenseNet
+from all_models import CommonsenseNet
 from metrics import Accuracy
 import pickle
 import utils
@@ -117,3 +117,7 @@ with torch.no_grad():
     metric_acc.reset()
 
     print(f'======== TestAccuracy: {test_accuracy} ======')
+
+torch.save(net.state_dict(), 'checkpoints/common_sense.pth')
+
+print('end')
