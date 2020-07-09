@@ -36,8 +36,6 @@ BATCH_SIZE = FLAGS.batch_size
 PRINT_EVERY = FLAGS.print_every
 
 
-# tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
-
 stories = utils.read_data('data/nlp2_val.csv')
 stories_test = utils.read_data('data/nlp2_test.csv')
 
@@ -52,7 +50,6 @@ val_dataloader = DataLoader(RocData(val_stories,device), batch_size=BATCH_SIZE,
 test_dataloader = DataLoader(RocData(stories_test,device), batch_size=BATCH_SIZE,
                                 shuffle=False)
 
-# net = BertNet()
 net = BertNet(device)
 net.to(device)
 
@@ -63,13 +60,13 @@ metric_acc = Accuracy()
 
 n_iteration=len(train_dataloader)
 v_iteration=len(val_dataloader)
+val_accuracy_prev = 0
 
 for epoch in range(NUM_EPOCHS):
     running_loss_train = 0.0
     running_loss_val = 0.0
     for i, train_batch in enumerate(train_dataloader):
         optimizer.zero_grad()
-        # output, train_loss = utils.run_step(train_batch, net, tokenizer, ce_loss, device)
         output = net(train_batch)
         train_loss = ce_loss(output, train_batch['labels'])
 
@@ -92,7 +89,6 @@ for epoch in range(NUM_EPOCHS):
 
     with torch.no_grad():
         for i, val_batch in enumerate(val_dataloader):
-            # output, val_loss = utils.run_step(val_batch, net, tokenizer, ce_loss, device)
             output = net(val_batch)
             val_loss = ce_loss(output, val_batch['labels'])
 
@@ -103,16 +99,18 @@ for epoch in range(NUM_EPOCHS):
 
         val_accuracy = metric_acc.get_metrics_summary()
         metric_acc.reset()
+        if val_accuracy > val_accuracy_prev:
+            torch.save(net.state_dict(), 'checkpoints/bert.pth')
+            print('checkpoint saved')
+            val_accuracy_prev = val_accuracy
 
         print(f'============Epoch: {epoch+1}, ValAccuracy: {val_accuracy}, Valloss: {running_loss_val/v_iteration}=================')
 
 with torch.no_grad():
     metric_acc.reset()
     for i, test_batch in enumerate(test_dataloader):
-        # output, val_loss = utils.run_step(test_batch, net, tokenizer, ce_loss, device)
         output = net(test_batch)
 
-        # running_loss_val += val_loss.item()
 
         _, predicted = torch.max(output, 1)
         metric_acc.update_batch(predicted, test_batch['labels'])
@@ -122,6 +120,5 @@ with torch.no_grad():
 
     print(f'======== TestAccuracy: {test_accuracy} ======')
 
-torch.save(net.state_dict(), 'checkpoints/bert.pth')
 
 print('end')

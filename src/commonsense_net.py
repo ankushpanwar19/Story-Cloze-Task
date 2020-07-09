@@ -63,6 +63,7 @@ metric_acc = Accuracy()
 
 n_iteration=len(train_dataloader)
 v_iteration=len(val_dataloader)
+val_accuracy_prev = 0
 
 for epoch in range(NUM_EPOCHS):
     running_loss_train = 0.0
@@ -102,6 +103,11 @@ for epoch in range(NUM_EPOCHS):
         val_accuracy = metric_acc.get_metrics_summary()
         metric_acc.reset()
 
+        if val_accuracy > val_accuracy_prev:
+            torch.save(net.state_dict(), 'checkpoints/common_sense.pth')
+            print('checkpoint saved')
+            val_accuracy_prev = val_accuracy
+
         print(f'============Epoch: {epoch+1}, ValAccuracy: {val_accuracy}, Valloss: {running_loss_val/v_iteration}=================')
         
 with torch.no_grad():
@@ -118,6 +124,5 @@ with torch.no_grad():
 
     print(f'======== TestAccuracy: {test_accuracy} ======')
 
-torch.save(net.state_dict(), 'checkpoints/common_sense.pth')
 
 print('end')

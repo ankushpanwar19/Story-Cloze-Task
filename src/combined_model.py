@@ -48,10 +48,6 @@ embedding_test=pickle.load(embed_file_test)
 embed_file_test.close()
 
 
-bert_dict = torch.load("checkpoints/bert.pth",map_location=device)
-sentiment_dict = torch.load("checkpoints/sentiment_finetuned.pth",map_location=device)
-common_sense_dict = torch.load("checkpoints/common_sense.pth",map_location=device)
-
 train_stories, val_stories = train_test_split(stories, test_size=0.1)
 
 
@@ -63,9 +59,6 @@ test_dataloader = DataLoader(CombinedData(stories_test, embedding_test, device),
                                 shuffle=False)
 
 net = CombinedNet(device)
-net.load_state_dict(bert_dict,strict=False)
-net.load_state_dict(sentiment_dict,strict=False)
-net.load_state_dict(common_sense_dict,strict=False)
 net.to(device)
 
 ce_loss = torch.nn.CrossEntropyLoss()
@@ -75,6 +68,7 @@ metric_acc = Accuracy()
 
 n_iteration = len(train_dataloader)
 v_iteration = len(val_dataloader)
+val_accuracy_prev = 0
 
 for epoch in range(NUM_EPOCHS):
     running_loss_train = 0.0
@@ -100,7 +94,6 @@ for epoch in range(NUM_EPOCHS):
             print(f'Epoch: {epoch+1}, Step: {i}/{n_iteration}, Accuracy: {train_accuracy}, \
                     Runningloss: {running_loss_train/PRINT_EVERY}')
             running_loss_train = 0
-        break
 
 
     with torch.no_grad():
@@ -113,20 +106,27 @@ for epoch in range(NUM_EPOCHS):
 
             _, predicted = torch.max(logits, 1)
             metric_acc.update_batch(predicted, val_batch['labels'])
-            break
 
         val_accuracy = metric_acc.get_metrics_summary()
         metric_acc.reset()
 
+        if val_accuracy > val_accuracy_prev:
+            torch.save(net.state_dict(), 'checkpoints/combined_model.pth')
+            print('checkpoint saved')
+            val_accuracy_prev = val_accuracy
+
         print(f'============Epoch: {epoch+1}, ValAccuracy: {val_accuracy}, Valloss: {running_loss_val/v_iteration}=================')
+
+del net
 
 with torch.no_grad():
     metric_acc.reset()
-    for i, test_batch in enumerate(test_dataloader):
-        logits = net(test_batch)
-        # logits, val_loss = utils.run_step(test_batch, net, tokenizer, ce_loss, device)
 
-        # running_loss_val += val_loss.item()
+    model = CombinedNet(device, pretrained=(False, False, False))
+    model.load_state_dict(torch.load('checkpoints/combined_model.pth'))
+    model.to(device)
+    for i, test_batch in enumerate(test_dataloader):
+        logits = model(test_batch)
 
         _, predicted = torch.max(logits, 1)
         metric_acc.update_batch(predicted, test_batch['labels'])

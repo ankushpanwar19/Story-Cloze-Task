@@ -22,11 +22,10 @@ else:
 
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--print_every', type=int, default=1)
-parser.add_argument('--num_epochs', type=int, default=10)
-parser.add_argument('--lr', type=float, default=0.001)
-parser.add_argument('--batch_size', type=int, default=4)
-parser.add_argument('--is_base_train', type=bool, default=True)
+parser.add_argument('--print_every', type=int, default=10)
+parser.add_argument('--num_epochs', type=int, default=5)
+parser.add_argument('--lr', type=float, default=0.00001)
+parser.add_argument('--batch_size', type=int, default=32)
 
 FLAGS = parser.parse_args()
 NUM_EPOCHS = FLAGS.num_epochs
@@ -34,7 +33,6 @@ LR = FLAGS.lr
 BATCH_SIZE = FLAGS.batch_size
 PRINT_EVERY = FLAGS.print_every
 
-senti_net_dict=torch.load("checkpoints/sentiment_base.pth",map_location=device)
 
 stories = utils.read_data('data/nlp2_val.csv')
 test_stories = utils.read_data('data/nlp2_test.csv')
@@ -48,8 +46,7 @@ val_dataloader = DataLoader(SentimentData(val_stories,device, is_base_train=Fals
 test_dataloader = DataLoader(SentimentData(test_stories,device, is_base_train=False), batch_size=BATCH_SIZE,
                                 shuffle=False)
 
-net = SentimentNetEnd2End()
-net.load_state_dict(senti_net_dict,strict=False)
+net = SentimentNetEnd2End(device, pretrained=True)
 net.to(device)
 
 ce_loss = torch.nn.CrossEntropyLoss()
@@ -59,6 +56,7 @@ metric_acc = Accuracy()
 
 n_iteration=len(train_dataloader)
 v_iteration=len(val_dataloader)
+val_accuracy_prev = 0
 
 for epoch in range(NUM_EPOCHS):
     running_loss_train = 0.0
@@ -75,18 +73,19 @@ for epoch in range(NUM_EPOCHS):
             print(f'Epoch: {epoch+1}, Step: {i}/{n_iteration},\
                 Runningloss: {running_loss_train/PRINT_EVERY}')
             running_loss_train = 0.0
-        break
     with torch.no_grad():
         for i, val_data in enumerate(val_dataloader):
             val_ending_sim = net(val_data)
 
             _, predicted = torch.max(val_ending_sim, 1)
             metric_acc.update_batch(predicted, val_data['labels'])
-            break
         val_accuracy = metric_acc.get_metrics_summary()
         metric_acc.reset()
-        print(f'============Epoch: {epoch+1}, ValAccuracy: {val_accuracy}=================')
+        if val_accuracy > val_accuracy_prev:
+            torch.save(net.state_dict(), 'checkpoints/sentiment_finetuned.pth')
+            print('checkpoint saved')
+            val_accuracy_prev = val_accuracy
 
-torch.save(net.state_dict(), 'checkpoints/sentiment_finetuned.pth')
+        print(f'============Epoch: {epoch+1}, ValAccuracy: {val_accuracy}=================')
 
 print('end')

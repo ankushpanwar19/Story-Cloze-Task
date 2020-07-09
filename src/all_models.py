@@ -70,20 +70,21 @@ class SentimentNet(torch.nn.Module):
         return output, h[-1]
 
 class SentimentNetEnd2End(torch.nn.Module):
-    def __init__(self):
+    def __init__(self, device, pretrained):
         super().__init__()
-        self.senti_net = SentimentNet()
+        # self.senti_net = SentimentNet()
+        self.senti_net = self._create(device, pretrained=pretrained)
         self.criterion=torch.nn.CosineSimilarity()
 
-    # def forward(self,data):
-    #     output,(h,c)=self.lstm1(data['story_senti_emb'])
+    def _create(self, device, pretrained=True):
+        model = SentimentNet()
+        if pretrained:
+            state_dict = torch.load("checkpoints/sentiment_base.pth", map_location=device)
+            model.load_state_dict(state_dict)
+            print('Checkpoint loaded')
 
-    #     ending1_sim = self.criterion(h[-1],data['ending1_senti_emb'])
-    #     ending2_sim = self.criterion(h[-1],data['ending2_senti_emb'])
+        return model
 
-    #     ending_sim = torch.stack((ending1_sim, ending2_sim), dim=1)
-
-    #     return ending_sim
     def forward(self,data):
         # output,(h,c)=self.lstm1(data['story_senti_emb'])
         senti_pred = self.senti_net(data['story_senti_emb'])
@@ -117,23 +118,33 @@ class CommonsenseNet(torch.nn.Module):
         return out
 
 class CombinedNet(torch.nn.Module):
-    def __init__(self, device):
+    def __init__(self, device, pretrained=(True, True, True)):
         super().__init__()
 
-        self.bert_net = BertNet(device)
-        self.sentiment_net = SentimentNetEnd2End()
-        self.commonsense_net = CommonsenseNet()
-        # self.tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
+        self.bert_net = self._create(device, BertNet(device), 
+                                    ckpt_path="checkpoints/bert.pth", pretrained=pretrained[0])
+        self.sentiment_net = self._create(device, SentimentNetEnd2End(device, pretrained=False), 
+                                    ckpt_path="checkpoints/sentiment_finetuned.pth", pretrained=pretrained[1])
+        self.commonsense_net = self._create(device, CommonsenseNet(), 
+                                    ckpt_path="checkpoints/common_sense.pth", pretrained=pretrained[2])
+
         self.device = device
         self.out = torch.nn.Linear(6,2)
         # self.gates = torch.nn.Sequential(
         #                         torch.nn.Linear(6, 3),
         #                         torch.nn.Softmax(dim=1))       
 
+    def _create(self, device, model_cls, ckpt_path, pretrained=True):
+        model = model_cls
+        if pretrained:
+            state_dict = torch.load(ckpt_path, map_location=device)
+            model.load_state_dict(state_dict)
+            print(f'{ckpt_path} loaded')
+
+        return model
+
 
     def forward(self, data):
-        # bert_logits = utils.run_step(data, self.bert_net, self.tokenizer, 
-        #                              self.device, compute_loss=False)
         bert_logits = self.bert_net(data, return_emb=False)
         senti_logits = self.sentiment_net(data)
         commonsense_logits = self.commonsense_net(data)

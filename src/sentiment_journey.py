@@ -1,4 +1,3 @@
-#%%
 import os
 import argparse
 import math
@@ -22,24 +21,21 @@ else:
 
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--print_every', type=int, default=1)
-parser.add_argument('--num_epochs', type=int, default=10)
-parser.add_argument('--lr', type=float, default=0.001)
-parser.add_argument('--batch_size', type=int, default=4)
-# parser.add_argument('--is_base_train', type=bool, default=True)
+parser.add_argument('--print_every', type=int, default=100)
+parser.add_argument('--num_epochs', type=int, default=3)
+parser.add_argument('--lr', type=float, default=0.0001)
+parser.add_argument('--batch_size', type=int, default=64)
 
 FLAGS = parser.parse_args()
 NUM_EPOCHS = FLAGS.num_epochs
 LR = FLAGS.lr
 BATCH_SIZE = FLAGS.batch_size
 PRINT_EVERY = FLAGS.print_every
-# IS_BASE_TRAIN = FLAGS.is_base_train
 
 train_stories = pd.read_csv('data/nlp2_train.csv')
 val_stories = utils.read_data('data/nlp2_val.csv')
 test_stories = utils.read_data('data/nlp2_test.csv')
 
-# train_stories, val_stories = train_test_split(stories, test_size=0.2)
 
 train_dataloader = DataLoader(SentimentData(train_stories,device), batch_size=BATCH_SIZE,
                                 shuffle=True)
@@ -54,6 +50,7 @@ criterion = torch.nn.CosineSimilarity()
 optimizer = torch.optim.Adam(net.parameters(), lr=LR)
 
 n_iteration=len(train_dataloader)
+val_accuracy_prev = 0
 
 for epoch in range(NUM_EPOCHS):
     running_loss_train = 0.0
@@ -85,11 +82,13 @@ for epoch in range(NUM_EPOCHS):
 
         val_accuracy = metric_acc.get_metrics_summary()
         metric_acc.reset()
+
+        if val_accuracy > val_accuracy_prev:
+            torch.save(net.state_dict(), 'checkpoints/sentiment_base.pth')
+            print('checkpoint saved')
+            val_accuracy_prev = val_accuracy
+
         print(f'============Epoch: {epoch+1}, ValAccuracy: {val_accuracy}=================')
 
-torch.save(net.state_dict(), 'checkpoints/sentiment_base.pth')
 
 print('end')
-
-
-# %%
