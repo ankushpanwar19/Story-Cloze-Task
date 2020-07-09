@@ -116,22 +116,3 @@ for epoch in range(NUM_EPOCHS):
             val_accuracy_prev = val_accuracy
 
         print(f'============Epoch: {epoch+1}, ValAccuracy: {val_accuracy}, Valloss: {running_loss_val/v_iteration}=================')
-
-del net
-
-with torch.no_grad():
-    metric_acc.reset()
-
-    model = CombinedNet(device, pretrained=(False, False, False))
-    model.load_state_dict(torch.load('checkpoints/combined_model.pth'))
-    model.to(device)
-    for i, test_batch in enumerate(test_dataloader):
-        logits = model(test_batch)
-
-        _, predicted = torch.max(logits, 1)
-        metric_acc.update_batch(predicted, test_batch['labels'])
-
-    test_accuracy = metric_acc.get_metrics_summary()
-    metric_acc.reset()
-
-    print(f'======== TestAccuracy: {test_accuracy} ======')
