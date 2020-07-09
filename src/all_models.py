@@ -14,7 +14,7 @@ class BertNet(torch.nn.Module):
 
         self.device = device
 
-    def forward(self, data, return_emb=False):
+    def forward(self, data, return_emb_sim=False):
         ending1, ending2 = self.preprocess_input(data)
 
         e1 = self.get_embedding(ending1)
@@ -24,11 +24,12 @@ class BertNet(torch.nn.Module):
         e2_score = self.out(e2)
 
         output = torch.cat((e1_score, e2_score), dim=1)
-        if not return_emb:
+        if not return_emb_sim:
             return output
         
-        emb_output = torch.stack((e1, e2), dim=-1)
-        return output, emb_output
+        cosine_sim = F.cosine_similarity(e1, e1, dim=1)
+        # emb_output = torch.stack((e1, e2), dim=-1)
+        return output, cosine_sim
 
     def preprocess_input(self, batch):
         e1_inputs = self.tokenizer(text=batch['full_story'], 
@@ -85,7 +86,7 @@ class SentimentNetEnd2End(torch.nn.Module):
 
         return model
 
-    def forward(self,data):
+    def forward(self, data, return_emb_sim=False):
         # output,(h,c)=self.lstm1(data['story_senti_emb'])
         senti_pred = self.senti_net(data['story_senti_emb'])
 
@@ -94,7 +95,11 @@ class SentimentNetEnd2End(torch.nn.Module):
 
         ending_sim = torch.stack((ending1_sim, ending2_sim), dim=1)
 
-        return ending_sim
+        if not return_emb_sim:
+            return ending_sim
+        
+        cosine_sim = F.cosine_similarity(data['ending1_senti_emb'], data['ending2_senti_emb'], dim=1)
+        return ending_sim, cosine_sim
 
 class CommonsenseNet(torch.nn.Module):
     def __init__(self):
@@ -103,13 +108,17 @@ class CommonsenseNet(torch.nn.Module):
         self.layer1 = torch.nn.Linear(4, 256)
         self.out = torch.nn.Linear(256, 1)
 
-    def forward(self,data):
+    def forward(self, data, return_emb_sim=False):
         out1=self.step(data['ending1_common_sense'])
-        out2=self.step(data['ending1_common_sense'])
+        out2=self.step(data['ending2_common_sense'])
 
         ending_prob = torch.cat((out1, out2),dim=1)
 
-        return ending_prob
+        if not return_emb_sim:
+            return ending_prob
+
+        cosine_sim = F.cosine_similarity(data['ending1_common_sense'], data['ending2_common_sense'], dim=1)
+        return ending_prob, cosine_sim
 
     def step(self,ending):
         out=F.relu(self.layer1(ending))
@@ -129,7 +138,7 @@ class CombinedNet(torch.nn.Module):
                                     ckpt_path="checkpoints/common_sense.pth", pretrained=pretrained[2])
 
         self.device = device
-        self.out = torch.nn.Linear(6,2)
+        self.gate = torch.nn.Linear(3,3)
         # self.gates = torch.nn.Sequential(
         #                         torch.nn.Linear(6, 3),
         #                         torch.nn.Softmax(dim=1))       
@@ -145,13 +154,18 @@ class CombinedNet(torch.nn.Module):
 
 
     def forward(self, data):
-        bert_logits = self.bert_net(data, return_emb=False)
-        senti_logits = self.sentiment_net(data)
-        commonsense_logits = self.commonsense_net(data)
+        bert_logits, bert_sim = self.bert_net(data, return_emb_sim=True)
+        senti_logits, senti_sim = self.sentiment_net(data, return_emb_sim=True)
+        commonsense_logits, commonsense_sim = self.commonsense_net(data, return_emb_sim=True)
 
-        combined_logits = torch.cat((bert_logits, senti_logits, commonsense_logits), dim=1)
+        combined_sim = torch.stack((bert_sim, senti_sim, commonsense_sim), dim=1)
+        gates = F.softmax(self.gate(combined_sim), dim=1) 
+        gates = torch.unsqueeze(gates, dim=-1)
 
-        final_logits = self.out(combined_logits)
+        combined_logits = torch.stack((bert_logits, senti_logits, commonsense_logits), dim=1)
+        combined_probs = F.softmax(combined_logits, dim=-1)
 
-        return final_logits
+        final_probs = (gates * combined_probs).sum(dim=1)
+
+        return final_probs
 
