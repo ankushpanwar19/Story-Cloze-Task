@@ -24,9 +24,14 @@ jedi==0.17.1
 joblib==0.16.0
 jupyter-client==6.1.5
 jupyter-core==4.6.3
+Keras-Applications==1.0.8
 Keras-Preprocessing==1.1.2
+langcodes==2.0.0
+marisa-trie==0.7.5
 Markdown==3.2.2
-numpy==1.19.0
+msgpack==1.0.0
+nltk==3.5
+numpy==1.16.4
 oauthlib==3.1.0
 opt-einsum==3.2.1
 packaging==20.4
@@ -67,5 +72,6 @@ transformers==3.0.0
 urllib3==1.25.9
 wcwidth==0.2.5
 Werkzeug==1.0.1
+wordfreq==2.3.2
 wrapt==1.12.1
 zipp==3.1.0
