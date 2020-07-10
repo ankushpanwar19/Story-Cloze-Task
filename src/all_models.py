@@ -59,16 +59,16 @@ class BertNet(torch.nn.Module):
 class SentimentNet(torch.nn.Module):
     def __init__(self):
         super().__init__()
-        self.lstm1 = torch.nn.LSTM(3,256,batch_first=True)
+        self.lstm1 = torch.nn.LSTM(3,128,batch_first=True,bidirectional=True)
         self.out = torch.nn.Linear(256, 3)
 
     def forward(self,data, return_emb=False):
-        _,(h,_)=self.lstm1(data)
-        output = self.out(h[-1])
+        o,(h,_)=self.lstm1(data)
+        output = self.out(o[:,-1,:])
         if not return_emb:
             return output
         
-        return output, h[-1]
+        return output, o[:,-1,:]
 
 class SentimentNetEnd2End(torch.nn.Module):
     def __init__(self, device, pretrained):
@@ -134,6 +134,9 @@ class CombinedNet(torch.nn.Module):
                                     ckpt_path="checkpoints/bert.pth", pretrained=pretrained[0])
         self.sentiment_net = self._create(device, SentimentNetEnd2End(device, pretrained=False), 
                                     ckpt_path="checkpoints/sentiment_finetuned.pth", pretrained=pretrained[1])
+        
+        # self.sentiment_net = self._create(device, SentimentBertNetEnd2End(device, pretrained=True,param_freeze=True), ckpt_path="checkpoints/bert_sentiment_finetuned.pth", pretrained=pretrained[1])
+
         self.commonsense_net = self._create(device, CommonsenseNet(), 
                                     ckpt_path="checkpoints/common_sense.pth", pretrained=pretrained[2])
 
@@ -178,8 +181,8 @@ class SentimentBertNet(torch.nn.Module):
 
         self.device = device
 
-    def forward(self, data, return_emb=False):
-        bert_input = self.preprocess_input(data)
+    def forward(self, text, return_emb=False):
+        bert_input = self.preprocess_input(text)
 
         emb = self.get_embedding(bert_input)
         score = torch.sigmoid(self.out(emb))
@@ -189,8 +192,8 @@ class SentimentBertNet(torch.nn.Module):
         
         return score, emb
 
-    def preprocess_input(self, batch):
-        inputs = self.tokenizer(text=batch['review'], 
+    def preprocess_input(self, text):
+        inputs = self.tokenizer(text=text, 
                         padding=True,
                         truncation=True,
                         max_length=512,
@@ -205,3 +208,40 @@ class SentimentBertNet(torch.nn.Module):
     def get_embedding(self, ending):
         e1 = self.bert(**ending)
         return e1[0][:,0,:]
+
+class SentimentBertNetEnd2End(torch.nn.Module):
+    def __init__(self, device, pretrained=True,param_freeze=True):
+        super().__init__()
+        # self.senti_net = SentimentNet()
+        self.senti_net = self._create(device, pretrained=pretrained,param_freeze=param_freeze)
+        self.criterion=torch.nn.CosineSimilarity()
+
+    def _create(self, device, pretrained=True,param_freeze=True):
+        model = SentimentBertNet(device)
+        if pretrained:
+            state_dict = torch.load("checkpoints/bert_sentiment.pth", map_location=device)
+            model.load_state_dict(state_dict)
+            if param_freeze:
+                for param in model.parameters():
+                    param.requires_grad = False
+            print('Checkpoint loaded')
+
+        return model
+
+    def forward(self, data, return_emb_sim=False):
+        # output,(h,c)=self.lstm1(data['story_senti_emb'])
+        story_pred = self.senti_net(data['full_story'])
+
+        ending1_bert = self.senti_net(data['ending1'])
+        ending2_bert = self.senti_net(data['ending2'])
+
+        ending1_sim = self.criterion(story_pred,ending1_bert)
+        ending2_sim = self.criterion(story_pred,ending2_bert)
+
+        ending_sim = torch.stack((ending1_sim, ending2_sim), dim=1)
+
+        if not return_emb_sim:
+            return ending_sim
+        
+        cosine_sim = F.cosine_similarity(data['ending1_senti_emb'], data['ending2_senti_emb'], dim=1)
+        return ending_sim, cosine_sim

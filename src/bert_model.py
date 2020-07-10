@@ -25,7 +25,7 @@ else:
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--print_every', type=int, default=10)
-parser.add_argument('--num_epochs', type=int, default=5)
+parser.add_argument('--num_epochs', type=int, default=3)
 parser.add_argument('--lr', type=float, default=0.00001)
 parser.add_argument('--batch_size', type=int, default=32)
 
@@ -106,19 +106,3 @@ for epoch in range(NUM_EPOCHS):
 
         print(f'============Epoch: {epoch+1}, ValAccuracy: {val_accuracy}, Valloss: {running_loss_val/v_iteration}=================')
 
-with torch.no_grad():
-    metric_acc.reset()
-    for i, test_batch in enumerate(test_dataloader):
-        output = net(test_batch)
-
-
-        _, predicted = torch.max(output, 1)
-        metric_acc.update_batch(predicted, test_batch['labels'])
-
-    test_accuracy = metric_acc.get_metrics_summary()
-    metric_acc.reset()
-
-    print(f'======== TestAccuracy: {test_accuracy} ======')
-
-
-print('end')

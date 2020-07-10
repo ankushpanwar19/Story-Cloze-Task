@@ -1,14 +1,20 @@
 import torch
 import pickle
 from torch.utils.data import DataLoader
+import argparse
 
 from dataset import CombinedData
-from all_models import CombinedNet
+from all_models import *
 from metrics import Accuracy
 import utils
 
+parser = argparse.ArgumentParser()
+parser.add_argument('--model', type=str, choices=['bert','sentiment','commonsense','combined'],default="combined")
+parser.add_argument('--batch_size', type=int, default=100)
 
-BATCH_SIZE = 32
+FLAGS = parser.parse_args()
+BATCH_SIZE = FLAGS.batch_size
+MODEL= FLAGS.model
 
 if torch.cuda.is_available():
     device=torch.device('cuda')
@@ -31,9 +37,19 @@ metric_acc = Accuracy()
 
 with torch.no_grad():
     metric_acc.reset()
+    if MODEL=='bert':
+        model = BertNet(device)
+        model.load_state_dict(torch.load('checkpoints/bert.pth',map_location=device))
+    elif MODEL=='sentiment':
+        model = SentimentNetEnd2End(device, pretrained=True)
+        model.load_state_dict(torch.load('checkpoints/sentiment_finetuned.pth',map_location=device))
+    elif MODEL=='commonsense':
+        model = CommonsenseNet()
+        model.load_state_dict(torch.load('checkpoints/common_sense.pth',map_location=device))
+    else:
+        model = CombinedNet(device, pretrained=(False, False, False))
+        model.load_state_dict(torch.load('checkpoints/combined_model.pth',map_location=device))
 
-    model = CombinedNet(device, pretrained=(False, False, False))
-    model.load_state_dict(torch.load('checkpoints/combined_model.pth'))
     model.to(device)
     for i, test_batch in enumerate(test_dataloader):
         logits = model(test_batch)

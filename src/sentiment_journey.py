@@ -23,7 +23,7 @@ else:
 parser = argparse.ArgumentParser()
 parser.add_argument('--print_every', type=int, default=100)
 parser.add_argument('--num_epochs', type=int, default=3)
-parser.add_argument('--lr', type=float, default=0.0001)
+parser.add_argument('--lr', type=float, default=0.001)
 parser.add_argument('--batch_size', type=int, default=64)
 
 FLAGS = parser.parse_args()

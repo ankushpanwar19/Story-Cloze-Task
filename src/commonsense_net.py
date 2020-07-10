@@ -118,7 +118,7 @@ with torch.no_grad():
 
         _, predicted = torch.max(output, 1)
         metric_acc.update_batch(predicted, test_batch['labels'])
-        break
+
     test_accuracy = metric_acc.get_metrics_summary()
     metric_acc.reset()
 
