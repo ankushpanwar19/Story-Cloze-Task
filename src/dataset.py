@@ -5,6 +5,9 @@ from nltk.sentiment.vader import SentimentIntensityAnalyzer
 import nltk
 from scipy.spatial.distance import cosine
 from tqdm import tqdm
+from glob import glob
+import os
+from collections import defaultdict
 
 import text_to_uri as ttu
 import utils
@@ -154,20 +157,57 @@ class CombinedData(Dataset):
         }
         return sample
 
+class ImdbData(Dataset):
+    def __init__(self, data_dir, mode, device):
+        self.device = device
+        self.data_dir = os.path.join(data_dir, mode)
+        neg_reviews_df = self.load_reviews('neg')
+        pos_reviews_df = self.load_reviews('pos')
+        self.review_df = pd.concat([neg_reviews_df, pos_reviews_df])
+        self.review_df = self.review_df.sample(frac=1, replace=False).reset_index(drop=True)
+
+
+    def load_reviews(self, review_type):
+        txt_files = glob(os.path.join(self.data_dir, review_type, '*.txt'))
+        label = 0 if review_type == 'neg' else 1
+        reviews = defaultdict(list)
+        for fpath in txt_files:
+            with open(fpath, 'r') as f:
+                reviews['text'].append(f.readline())
+                reviews['label'].append(label)
+        reviews_df = pd.DataFrame(reviews)
+        return reviews_df
+
+    def __len__(self):
+        return len(self.review_df)
+
+    def __getitem__(self, idx):
+        review_item = self.review_df.iloc[idx]
+        label = review_item['label']
+
+        sample = {
+            'review': review_item['text'],
+            'review_label': torch.tensor(label,dtype=torch.float32, device=self.device),
+        }
+
+        return sample
 
 
 #%%
 if __name__ == "__main__":
-    stories_val = utils.read_data('data/nlp2_val.csv')
-    embedding = pd.read_csv('numberbatch-en-19.08.txt', sep=' ', skiprows=1, header=None)
-    embedding.set_index(0, inplace=True)
+    # stories_val = utils.read_data('data/nlp2_val.csv')
+    # embedding = pd.read_csv('numberbatch-en-19.08.txt', sep=' ', skiprows=1, header=None)
+    # embedding.set_index(0, inplace=True)
+
+    imdb_dataset = ImdbData('data/imdb', mode='train')
+
 
 
     # stories_val = stories_val.rename(index=str, columns=columns_rename)
 
-    roc_dataset = CommonSenseData(stories_val, embedding, device='cpu')
+    # roc_dataset = CommonSenseData(stories_val, embedding, device='cpu')
 
-    dataloader = DataLoader(roc_dataset, batch_size=4,
+    dataloader = DataLoader(imdb_dataset, batch_size=4,
                             shuffle=True)
 
     for batch in dataloader:

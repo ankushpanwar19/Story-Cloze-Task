@@ -169,3 +169,39 @@ class CombinedNet(torch.nn.Module):
 
         return final_probs
 
+class SentimentBertNet(torch.nn.Module):
+    def __init__(self, device):
+        super().__init__()
+        self.bert = BertModel.from_pretrained('bert-base-uncased')
+        self.tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
+        self.out = torch.nn.Linear(768, 1)
+
+        self.device = device
+
+    def forward(self, data, return_emb=False):
+        bert_input = self.preprocess_input(data)
+
+        emb = self.get_embedding(bert_input)
+        score = torch.sigmoid(self.out(emb))
+
+        if not return_emb:
+            return score
+        
+        return score, emb
+
+    def preprocess_input(self, batch):
+        inputs = self.tokenizer(text=batch['review'], 
+                        padding=True,
+                        truncation=True,
+                        max_length=512,
+                        return_tensors="pt",)
+
+
+        for i in inputs.keys():
+            inputs[i] = inputs[i].to(self.device)
+        
+        return inputs
+
+    def get_embedding(self, ending):
+        e1 = self.bert(**ending)
+        return e1[0][:,0,:]
