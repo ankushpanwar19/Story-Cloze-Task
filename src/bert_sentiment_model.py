@@ -84,6 +84,7 @@ for epoch in range(NUM_EPOCHS):
     with torch.no_grad():
         for i, val_batch in enumerate(val_dataloader):
             output = net(val_batch)
+            output = output.squeeze(dim=-1)
             val_loss = ce_loss(output, val_batch['review_label'])
 
             running_loss_val += val_loss.item()
