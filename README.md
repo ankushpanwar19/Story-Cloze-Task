@@ -54,8 +54,7 @@ src/
 - Make final prediction
 
 ## Files to be downloaded
-<a name='Download'></a>
-- [Checkpoints TODO: add link]()
+- Download [Checkpoints TODO: add link]() and put them in checkpoints folder in root directory of this repository
 
 ## Reproducing our results
 To reproduce our results mentioned in report download the checkpoints from above mentioned link and put them in checkpoints folder. The run the following command
