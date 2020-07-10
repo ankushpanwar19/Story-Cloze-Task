@@ -175,4 +175,7 @@ lsf.*
 numberbatch-en-19.08.txt
 numberbatch-en-19.08.txt.gz
 
+## ignore imdb
+data/imdb
+
 # End of https://www.gitignore.io/api/python,jupyternotebook,visualstudiocode
